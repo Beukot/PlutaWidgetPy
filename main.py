@@ -56,7 +56,7 @@ class TransparentOverlay:
             screen = monitors[0]
 
         win_width = self.window.winfo_reqwidth()
-        x = 0
+        x = screen.x + 0
         y = 0
         self.window.geometry(f"+{x}+{y}")
 
