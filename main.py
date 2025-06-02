@@ -1,3 +1,4 @@
+import math
 import sys
 import tkinter as tk
 import threading
@@ -45,9 +46,7 @@ class TransparentOverlay(tk.Tk):
 
     def set_position(self):
         # Pobierz rozdzielczość ekranu
-        user32 = ctypes.windll.user32
-        screen_width = user32.GetSystemMetrics(0)
-        screen_height = user32.GetSystemMetrics(1)
+
 
         win_width = self.winfo_reqwidth()
         win_height = self.winfo_reqheight()
@@ -57,7 +56,12 @@ class TransparentOverlay(tk.Tk):
         self.geometry(f"+{x}+{y}")
 
     def update_label(self, text):
-        self.label.config(text=text, font=tk.font.Font(family="Consolas", size=22, weight="bold"))
+        user32 = ctypes.windll.user32
+        screen_width = user32.GetSystemMetrics(0)
+        screen_height = user32.GetSystemMetrics(1)
+        font_size = math.floor(screen_width * 0.01145833333)
+
+        self.label.config(text=text, font=tk.font.Font(family="Consolas", size=font_size, weight="bold"))
         self.set_position()  # Ustaw ponownie po zmianie rozmiaru
 
     def make_clickthrough(self):
@@ -107,7 +111,7 @@ class TransparentOverlay(tk.Tk):
             item("Zamknij", self.exit_app)
         )
 
-        icon = pystray.Icon("pluta_widget", icon_image, "Plutometr", menu)
+        icon = pystray.Icon("pluta_widget", icon_image, "Plutomierz", menu)
         self.icon = icon
         self.after(0, self.deiconify)  # Pokaż widget
         icon.run()
