@@ -1,39 +1,44 @@
 import sys
 import tkinter as tk
 import threading
-from idlelib.configdialog import font_sample_text
-
 import websocket
 import json
 import ctypes
-
 import pystray
+
 from pystray import MenuItem as item
 from PIL import Image, ImageDraw
 
+from settings_window import load_settings
+from screeninfo import get_monitors
+
 WS_URL = "wss://api.plutomierz.ovh"
 
-class TransparentOverlay(tk.Tk):
+class TransparentOverlay:
     def __init__(self):
-        super().__init__()
-        self.withdraw()
+        self.root = tk.Tk()
+        self.root.withdraw()  # Ukryj główne okno
+        self.window = tk.Toplevel(self.root)
+        self.settings = load_settings()
 
-        # Usuń ramkę okna
-        self.overrideredirect(True)
-
-        # Zawsze na wierzchu
-        self.wm_attributes("-topmost", True)
-
-        # Przezroczyste tło (tylko czarne elementy będą ukryte)
-        self.wm_attributes("-transparentcolor", "black")
-        self.configure(bg="black")
+        self.window.withdraw()
+        self.window.overrideredirect(True)
+        self.window.wm_attributes("-topmost", True)
+        self.window.wm_attributes("-transparentcolor", "black")
+        self.window.configure(bg="black")
 
         # Tekst
-        self.label = tk.Label(self, text="Plutuję...", font=("Consolas", 16), fg="lime", bg="black")
+        self.label = tk.Label(
+            self.window,
+            text="Plutuję...",
+            font=(self.settings["font_family"], self.settings["font_size"], self.settings["font_weight"]),
+            fg=self.settings["font_color"],
+            bg="black"
+        )
         self.label.pack()
 
         # Przesuń do prawego górnego rogu
-        self.update_idletasks()
+        self.window.update_idletasks()
         self.set_position()
         self.make_clickthrough()
 
@@ -44,24 +49,23 @@ class TransparentOverlay(tk.Tk):
         threading.Thread(target=self.setup_tray_icon, daemon=True).start()
 
     def set_position(self):
-        # Pobierz rozdzielczość ekranu
-        user32 = ctypes.windll.user32
-        screen_width = user32.GetSystemMetrics(0)
-        screen_height = user32.GetSystemMetrics(1)
+        monitors = get_monitors()
+        if self.settings["screen_index"] < len(monitors):
+            screen = monitors[self.settings["screen_index"]]
+        else:
+            screen = monitors[0]
 
-        win_width = self.winfo_reqwidth()
-        win_height = self.winfo_reqheight()
-
-        x = 0  # 10px od prawej krawędzi
-        y = 0  # 10px od góry
-        self.geometry(f"+{x}+{y}")
+        win_width = self.window.winfo_reqwidth()
+        x = 0
+        y = 0
+        self.window.geometry(f"+{x}+{y}")
 
     def update_label(self, text):
-        self.label.config(text=text, font=tk.font.Font(family="Consolas", size=22, weight="bold"))
+        self.label.config(text=text)
         self.set_position()  # Ustaw ponownie po zmianie rozmiaru
 
     def make_clickthrough(self):
-        hwnd = ctypes.windll.user32.GetParent(self.winfo_id())
+        hwnd = ctypes.windll.user32.GetParent(self.window.winfo_id())
         styles = ctypes.windll.user32.GetWindowLongW(hwnd, -20)
         styles |= 0x80000 | 0x20  # WS_EX_LAYERED | WS_EX_TRANSPARENT
         ctypes.windll.user32.SetWindowLongW(hwnd, -20, styles)
@@ -72,15 +76,15 @@ class TransparentOverlay(tk.Tk):
                 data = json.loads(message)
                 if data.get("type") == "pluta":
                     value = data.get("value")
-                    self.after(0, self.update_label, f"{value} P")
+                    self.window.after(0, self.update_label, f"{value} P")
             except Exception:
-                self.after(0, self.update_label, "Błąd Pluty")
+                self.window.after(0, self.update_label, "Błąd Pluty")
 
         def on_error(ws, error):
-            self.after(0, self.update_label, f"Błąd: {error}")
+            self.window.after(0, self.update_label, f"Błąd: {error}")
 
         def on_close(ws, *_):
-            self.after(0, self.update_label, "Pluta sobie poszedł!")
+            self.window.after(0, self.update_label, "Pluta sobie poszedł!")
 
         def on_open(ws):
             print("Pluta jest z nami!")
@@ -107,23 +111,37 @@ class TransparentOverlay(tk.Tk):
             item("Zamknij", self.exit_app)
         )
 
-        icon = pystray.Icon("pluta_widget", icon_image, "Plutometr", menu)
+        icon = pystray.Icon("pluta_widget", icon_image, "Plutomierz", menu)
         self.icon = icon
-        self.after(0, self.deiconify)  # Pokaż widget
+        self.window.after(0, self.window.deiconify)  # Pokaż widget
         icon.run()
 
-    def open_settings(self):
-        self.after(0, lambda: print(">> Tu można otworzyć GUI ustawień"))
+    def reload_settings(self):
+        from settings_window import load_settings
+        self.settings = load_settings()
+
+        # Zmień czcionkę i kolor
+        self.label.config(
+            font=(self.settings["font_family"], self.settings["font_size"], self.settings["font_weight"]),
+            fg=self.settings["font_color"]
+        )
+
+        # Przestaw pozycję na ekranie
+        self.set_position()
+
+    def open_settings(self, *args):
+        from settings_window import SettingsWindow
+        SettingsWindow(self.reload_settings)
 
     def exit_app(self, icon=None, item=None):
         if self.icon:
             self.icon.stop()
-        self.after(0, self.destroy)
+        self.window.after(0, self.window.destroy)
 
 if __name__ == "__main__":
     try:
         app = TransparentOverlay()
-        app.mainloop()
+        app.root.mainloop()
         sys.exit(0)
     except KeyboardInterrupt:
         print("Zamknięto Plutę!")
