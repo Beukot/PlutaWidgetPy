@@ -1,4 +1,3 @@
-import math
 import sys
 import tkinter as tk
 import threading
@@ -46,7 +45,9 @@ class TransparentOverlay(tk.Tk):
 
     def set_position(self):
         # Pobierz rozdzielczość ekranu
-
+        user32 = ctypes.windll.user32
+        screen_width = user32.GetSystemMetrics(0)
+        screen_height = user32.GetSystemMetrics(1)
 
         win_width = self.winfo_reqwidth()
         win_height = self.winfo_reqheight()
@@ -56,12 +57,7 @@ class TransparentOverlay(tk.Tk):
         self.geometry(f"+{x}+{y}")
 
     def update_label(self, text):
-        user32 = ctypes.windll.user32
-        screen_width = user32.GetSystemMetrics(0)
-        screen_height = user32.GetSystemMetrics(1)
-        font_size = math.floor(screen_width * 0.01145833333)
-
-        self.label.config(text=text, font=tk.font.Font(family="Consolas", size=font_size, weight="bold"))
+        self.label.config(text=text, font=tk.font.Font(family="Consolas", size=22, weight="bold"))
         self.set_position()  # Ustaw ponownie po zmianie rozmiaru
 
     def make_clickthrough(self):
@@ -117,7 +113,8 @@ class TransparentOverlay(tk.Tk):
         icon.run()
 
     def open_settings(self):
-        self.after(0, lambda: print(">> Tu można otworzyć GUI ustawień"))
+        import subprocess
+        subprocess.Popen([sys.executable, "settings_window.py"])
 
     def exit_app(self, icon=None, item=None):
         if self.icon:
