@@ -16,18 +16,15 @@ default_settings = {
     "screen_index": 0
 }
 
-
 def load_settings():
     if not os.path.exists(SETTINGS_FILE):
         return default_settings.copy()
     with open(SETTINGS_FILE, "r") as f:
         return json.load(f)
 
-
 def save_settings(data):
     with open(SETTINGS_FILE, "w") as f:
         json.dump(data, f, indent=4)
-
 
 def add_to_startup():
     import winreg
@@ -37,7 +34,6 @@ def add_to_startup():
                          r"Software\Microsoft\Windows\CurrentVersion\Run", 0, winreg.KEY_SET_VALUE)
     winreg.SetValueEx(key, "PlutaWidget", 0, winreg.REG_SZ, f'"{exe}" "{script}"')
     key.Close()
-
 
 def remove_from_startup():
     import winreg
@@ -49,9 +45,9 @@ def remove_from_startup():
     except FileNotFoundError:
         pass
 
-
 class SettingsWindow:
-    def __init__(self):
+    def __init__(self, on_change_callback=None):
+        self.on_change_callback = on_change_callback
         self.settings = load_settings()
         self.root = tk.Tk()
         self.root.title("Ustawienia Pluta Widget")
@@ -59,26 +55,30 @@ class SettingsWindow:
 
         # Autostart
         self.autostart_var = tk.BooleanVar(value=self.settings["autostart"])
-        tk.Checkbutton(self.root, text="Uruchamiaj z systemem", variable=self.autostart_var).pack(anchor="w", padx=10, pady=5)
+        cb = tk.Checkbutton(self.root, text="Uruchamiaj z systemem", variable=self.autostart_var, command=self.on_change)
+        cb.pack(anchor="w", padx=10, pady=5)
 
         # Font family
         tk.Label(self.root, text="Czcionka:").pack(anchor="w", padx=10)
         self.font_family = ttk.Combobox(self.root, values=sorted(font.families()))
         self.font_family.set(self.settings["font_family"])
         self.font_family.pack(fill="x", padx=10)
+        self.font_family.bind("<<ComboboxSelected>>", self.on_change)
 
         # Font size
         tk.Label(self.root, text="Rozmiar czcionki:").pack(anchor="w", padx=10)
-        self.font_size = tk.Spinbox(self.root, from_=8, to=72)
+        self.font_size = tk.Spinbox(self.root, from_=8, to=72, command=self.on_change)
         self.font_size.delete(0, "end")
         self.font_size.insert(0, self.settings["font_size"])
         self.font_size.pack(fill="x", padx=10)
+        self.font_size.bind("<KeyRelease>", self.on_change)
 
         # Font weight
         tk.Label(self.root, text="Grubość czcionki:").pack(anchor="w", padx=10)
         self.font_weight = ttk.Combobox(self.root, values=["normal", "bold"])
         self.font_weight.set(self.settings["font_weight"])
         self.font_weight.pack(fill="x", padx=10)
+        self.font_weight.bind("<<ComboboxSelected>>", self.on_change)
 
         # Font color
         tk.Label(self.root, text="Kolor czcionki:").pack(anchor="w", padx=10)
@@ -92,9 +92,7 @@ class SettingsWindow:
         self.screen_index = ttk.Combobox(self.root, values=self.screen_options)
         self.screen_index.set(f"{self.settings['screen_index']}: {screens[self.settings['screen_index']].width}x{screens[self.settings['screen_index']].height}")
         self.screen_index.pack(fill="x", padx=10)
-
-        # Save button
-        tk.Button(self.root, text="Zapisz", command=self.save).pack(pady=15)
+        self.screen_index.bind("<<ComboboxSelected>>", self.on_change)
 
         self.root.mainloop()
 
@@ -102,9 +100,13 @@ class SettingsWindow:
         color = colorchooser.askcolor(title="Wybierz kolor")[1]
         if color:
             self.color_button.config(bg=color)
+            self.on_change()
 
-    def save(self):
-        selected_screen = int(self.screen_index.get().split(":")[0])
+    def on_change(self, *args):
+        try:
+            selected_screen = int(self.screen_index.get().split(":" )[0])
+        except (ValueError, IndexError):
+            selected_screen = 0
 
         self.settings = {
             "autostart": self.autostart_var.get(),
@@ -122,8 +124,11 @@ class SettingsWindow:
         else:
             remove_from_startup()
 
-        self.root.destroy()
+        if self.on_change_callback:
+            self.on_change_callback()
 
+    def save_and_close(self):
+        self.root.destroy()
 
 if __name__ == "__main__":
     SettingsWindow()

@@ -1,21 +1,24 @@
 import sys
 import tkinter as tk
 import threading
-from idlelib.configdialog import font_sample_text
-
 import websocket
 import json
 import ctypes
-
 import pystray
+
 from pystray import MenuItem as item
 from PIL import Image, ImageDraw
+
+from settings_window import load_settings
+from screeninfo import get_monitors
 
 WS_URL = "wss://api.plutomierz.ovh"
 
 class TransparentOverlay(tk.Tk):
     def __init__(self):
         super().__init__()
+        self.settings = load_settings()
+
         self.withdraw()
 
         # Usuń ramkę okna
@@ -29,7 +32,13 @@ class TransparentOverlay(tk.Tk):
         self.configure(bg="black")
 
         # Tekst
-        self.label = tk.Label(self, text="Plutuję...", font=("Consolas", 16), fg="lime", bg="black")
+        self.label = tk.Label(
+            self,
+            text="Plutuję...",
+            font=(self.settings["font_family"], self.settings["font_size"], self.settings["font_weight"]),
+            fg=self.settings["font_color"],
+            bg="black"
+        )
         self.label.pack()
 
         # Przesuń do prawego górnego rogu
@@ -44,21 +53,21 @@ class TransparentOverlay(tk.Tk):
         threading.Thread(target=self.setup_tray_icon, daemon=True).start()
 
     def set_position(self):
-        # Pobierz rozdzielczość ekranu
-        user32 = ctypes.windll.user32
-        screen_width = user32.GetSystemMetrics(0)
-        screen_height = user32.GetSystemMetrics(1)
+        monitors = get_monitors()
+        if self.settings["screen_index"] < len(monitors):
+            screen = monitors[self.settings["screen_index"]]
+        else:
+            screen = monitors[0]
 
         win_width = self.winfo_reqwidth()
-        win_height = self.winfo_reqheight()
-
-        x = 0  # 10px od prawej krawędzi
-        y = 0  # 10px od góry
+        x = 0
+        y = 0
         self.geometry(f"+{x}+{y}")
 
     def update_label(self, text):
-        self.label.config(text=text, font=tk.font.Font(family="Consolas", size=22, weight="bold"))
+        self.label.config(text=text)
         self.set_position()  # Ustaw ponownie po zmianie rozmiaru
+
 
     def make_clickthrough(self):
         hwnd = ctypes.windll.user32.GetParent(self.winfo_id())
@@ -112,9 +121,22 @@ class TransparentOverlay(tk.Tk):
         self.after(0, self.deiconify)  # Pokaż widget
         icon.run()
 
-    def open_settings(self):
-        import subprocess
-        subprocess.Popen([sys.executable, "settings_window.py"])
+    def reload_settings(self):
+        from settings_window import load_settings
+        self.settings = load_settings()
+
+        # Zmień czcionkę i kolor
+        self.label.config(
+            font=(self.settings["font_family"], self.settings["font_size"], self.settings["font_weight"]),
+            fg=self.settings["font_color"]
+        )
+
+        # Przestaw pozycję na ekranie
+        self.set_position()
+
+    def open_settings(self, *args):
+        from settings_window import SettingsWindow
+        SettingsWindow(self.reload_settings)
 
     def exit_app(self, icon=None, item=None):
         if self.icon:
