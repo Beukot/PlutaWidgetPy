@@ -53,19 +53,16 @@ class SettingsWindow:
         self.root.title("Ustawienia Pluta Widget")
         self.root.geometry("400x400")
 
-        # Autostart
         self.autostart_var = tk.BooleanVar(value=self.settings["autostart"])
         cb = tk.Checkbutton(self.root, text="Uruchamiaj z systemem", variable=self.autostart_var, command=self.on_change)
         cb.pack(anchor="w", padx=10, pady=5)
 
-        # Font family
         tk.Label(self.root, text="Czcionka:").pack(anchor="w", padx=10)
         self.font_family = ttk.Combobox(self.root, values=sorted(font.families()))
         self.font_family.set(self.settings["font_family"])
         self.font_family.pack(fill="x", padx=10)
         self.font_family.bind("<<ComboboxSelected>>", self.on_change)
 
-        # Font size
         tk.Label(self.root, text="Rozmiar czcionki:").pack(anchor="w", padx=10)
         self.font_size = tk.Spinbox(self.root, from_=8, to=72, command=self.on_change)
         self.font_size.delete(0, "end")
@@ -73,19 +70,16 @@ class SettingsWindow:
         self.font_size.pack(fill="x", padx=10)
         self.font_size.bind("<KeyRelease>", self.on_change)
 
-        # Font weight
         tk.Label(self.root, text="Grubość czcionki:").pack(anchor="w", padx=10)
         self.font_weight = ttk.Combobox(self.root, values=["normal", "bold"])
         self.font_weight.set(self.settings["font_weight"])
         self.font_weight.pack(fill="x", padx=10)
         self.font_weight.bind("<<ComboboxSelected>>", self.on_change)
 
-        # Font color
         tk.Label(self.root, text="Kolor czcionki:").pack(anchor="w", padx=10)
         self.color_button = tk.Button(self.root, text="Wybierz kolor", bg=self.settings["font_color"], command=self.choose_color)
         self.color_button.pack(fill="x", padx=10, pady=5)
 
-        # Screen index
         tk.Label(self.root, text="Ekran:").pack(anchor="w", padx=10)
         screens = get_monitors()
         self.screen_options = [f"{i}: {screen.width}x{screen.height}" for i, screen in enumerate(screens)]
