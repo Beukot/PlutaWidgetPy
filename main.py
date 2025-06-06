@@ -1,6 +1,8 @@
 import sys
 import tkinter as tk
 import threading
+from platform import system
+
 import websocket
 import json
 import ctypes
@@ -16,6 +18,8 @@ WS_URL = "wss://api.plutomierz.ovh"
 
 class TransparentOverlay:
     def __init__(self):
+        self.running = True
+
         self.root = tk.Tk()
         self.root.withdraw()
         self.window = tk.Toplevel(self.root)
@@ -56,8 +60,13 @@ class TransparentOverlay:
         self.window.geometry(f"+{x}+{y}")
 
     def update_label(self, text):
-        self.label.config(text=text)
-        self.set_position()
+        if not self.running:
+            return
+        try:
+            self.label.config(text=text)
+            self.set_position()
+        except tk.TclError:
+            pass
 
     def make_clickthrough(self):
         hwnd = ctypes.windll.user32.GetParent(self.window.winfo_id())
@@ -126,11 +135,12 @@ class TransparentOverlay:
         SettingsWindow(self.reload_settings)
 
     def exit_app(self, icon=None, item=None):
+        self.running = False
         if self.icon:
             self.icon.stop()
         self.window.after(0, self.window.destroy)
         print("Zamknięto Plutę!")
-        self.root.quit()
+        self.root.destroy()
 
 if __name__ == "__main__":
     try:
